@@ -7,7 +7,7 @@
 //  by Fred Potter <fpotter@pieceable.com>
 //
 //  using
-//  https://github.com/erichocean/cocoa-websocket
+//  https://github.com/square/SocketRocket
 //  http://regexkit.sourceforge.net/RegexKitLite/
 //  https://github.com/stig/json-framework/
 //  http://allseeing-i.com/ASIHTTPRequest/
@@ -26,7 +26,7 @@
 
 #import "SocketIO.h"
 
-#import "WebSocket.h"
+#import "SRWebSocket.h"
 
 #define DEBUG_LOGS 0
 #define HANDSHAKE_URL @"http://%@:%d/socket.io/1/?t=%d%@"
@@ -36,7 +36,7 @@
 # pragma mark -
 # pragma mark SocketIO's private interface
 
-@interface SocketIO (FP_Private) <WebSocketDelegate>
+@interface SocketIO (FP_Private) <SRWebSocketDelegate>
 
 - (void) log:(NSString *)message;
 
@@ -191,7 +191,7 @@
     packet.data = [[NSString alloc] initWithData:[NSJSONSerialization dataWithJSONObject:data options:0 error:nil] encoding:NSUTF8StringEncoding];
     packet.pId = pId;
     packet.ack = @"data";
-
+    
     [self send:packet];
 }
 
@@ -200,14 +200,17 @@
 
 - (void) openSocket
 {
-    NSString *url = [NSString stringWithFormat:SOCKET_URL, _host, _port, _sid];
-
+    NSString * urlString = [NSString stringWithFormat:SOCKET_URL, _host, _port, _sid];
+    NSURL * url = [NSURL URLWithString:urlString];
+    NSURLRequest * urlRequest = [NSURLRequest requestWithURL:url];
+    
+    [_webSocket close];
     _webSocket = nil;
     
-    _webSocket = [[WebSocket alloc] initWithURLString:url delegate:self];
-    [self log:[NSString stringWithFormat:@"Opening %@", url]];
+    _webSocket = [[SRWebSocket alloc] initWithURLRequest:urlRequest];
+    _webSocket.delegate = self;
     [_webSocket open];
-    
+    [self log:[NSString stringWithFormat:@"Opening %@", urlString]];
 }
 
 - (void) sendDisconnect
@@ -464,8 +467,6 @@
                 break;
             }
         }
-
-        packet = nil;
     }
     else
     {
@@ -492,7 +493,7 @@
     [self log:@"onConnect()"];
     
     _isConnected = YES;
-
+    
     // Send the connected packet so the server knows what it's dealing with.
     // Only required when endpoint/namespace is present
     if ([_endpoint length] > 0) {
@@ -535,7 +536,7 @@
     }
     
     // Disconnect the websocket, just in case
-    if (_webSocket != nil && [_webSocket connected]) {
+    if (_webSocket != nil && _webSocket.readyState != SR_CLOSED ) {
         [_webSocket close];
     }
     
@@ -672,28 +673,25 @@
 }*/
 
 # pragma mark -
-# pragma mark WebSocket Delegate Methods
+# pragma mark Web Socket Delegate Methods
 
-- (void) webSocketDidClose:(WebSocket*)webSocket 
-{
+- (void)webSocket:(SRWebSocket *)webSocket didCloseWithCode:(NSInteger)code reason:(NSString *)reason wasClean:(BOOL)wasClean {
     [self log:[NSString stringWithFormat:@"Connection closed."]];
     [self onDisconnect];
 }
 
-- (void) webSocketDidOpen:(WebSocket *)ws 
-{
+- (void)webSocketDidOpen:(SRWebSocket *)webSocket {
     [self log:[NSString stringWithFormat:@"Connection opened."]];
+    
 }
 
-- (void) webSocket:(WebSocket *)ws didFailWithError:(NSError *)error 
-{
+- (void)webSocket:(SRWebSocket *)webSocket didFailWithError:(NSError *)error {
     NSLog(@"ERROR: Connection failed with error ... %@", [error localizedDescription]);
     // Assuming this resulted in a disconnect
     [self onDisconnect];
 }
 
-- (void) webSocket:(WebSocket *)ws didReceiveMessage:(NSString*)message 
-{
+- (void)webSocket:(SRWebSocket *)webSocket didReceiveMessage:(NSString *)message {
     [self onData:message];
 }
 
@@ -709,17 +707,7 @@
 
 - (void) dealloc
 {
-    _host = nil;
-    _sid = nil;
-    _endpoint = nil;
-    
-    _webSocket = nil;
-    
     [_timeout invalidate];
-    _timeout = nil;
-    
-    _queue = nil;
-    _acks = nil;
 }
 
 
@@ -787,19 +775,6 @@
 - (NSString *) typeForIndex:(int)index
 {
     return [_types objectAtIndex:index];
-}
-
-- (void)dealloc
-{
-    _types = nil;
-    
-    type = nil;
-    pId = nil;
-    name = nil;
-    ack = nil;
-    data = nil;
-    args = nil;
-    endpoint = nil;
 }
 
 @end
