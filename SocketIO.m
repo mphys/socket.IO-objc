@@ -8,9 +8,6 @@
 //
 //  using
 //  https://github.com/square/SocketRocket
-//  http://regexkit.sourceforge.net/RegexKitLite/
-//  https://github.com/stig/json-framework/
-//  http://allseeing-i.com/ASIHTTPRequest/
 //
 //  reusing some parts of
 //  /socket.io/socket.io.js
@@ -28,7 +25,7 @@
 
 #import "SRWebSocket.h"
 
-#define DEBUG_LOGS 0
+#define DEBUG_LOGS 1
 #define HANDSHAKE_URL @"http://%@:%d/socket.io/1/?t=%d%@"
 #define SOCKET_URL @"ws://%@:%d/socket.io/1/websocket/%@"
 
@@ -635,42 +632,6 @@
     
     [self openSocket];
 }
-
-/*- (void) requestFinished:(ASIHTTPRequest *)request
-{
-    NSString *responseString = [request responseString];
-    [self log:[NSString stringWithFormat:@"requestFinished() %@", responseString]];
-    NSArray *data = [responseString componentsSeparatedByString:@":"];
-    
-    _sid = [data objectAtIndex:0];
-    [self log:[NSString stringWithFormat:@"sid: %@", _sid]];
-    
-    // add small buffer of 7sec (magic xD)
-    _heartbeatTimeout = [[data objectAtIndex:1] floatValue] + 7.0;
-    [self log:[NSString stringWithFormat:@"heartbeatTimeout: %f", _heartbeatTimeout]];
-    
-    // index 2 => connection timeout
-    
-    NSString *t = [data objectAtIndex:3];
-    NSArray *transports = [t componentsSeparatedByString:@","];
-    [self log:[NSString stringWithFormat:@"transports: %@", transports]];
-    
-    [self openSocket];
-}
-
-- (void) requestFailed:(ASIHTTPRequest *)request
-{
-    NSError *error = [request error];
-    NSLog(@"ERROR: handshake failed ... %@", [error localizedDescription]);
-    
-    _isConnected = NO;
-    _isConnecting = NO;
-    
-    if ([_delegate respondsToSelector:@selector(socketIOHandshakeFailed:)])
-    {
-        [_delegate socketIOHandshakeFailed:self];
-    }
-}*/
 
 # pragma mark -
 # pragma mark Web Socket Delegate Methods
